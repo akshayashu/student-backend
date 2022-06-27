@@ -1,30 +1,74 @@
 package com.akshay.studentbackend.student;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 @Service
 public class StudentService {
 
-    public List<Student> getStudents() {
-        return List.of(
-                new Student(
-                        1L,
-                        "Akshay Khanna",
-                        "akshay@gmail.com",
-                        LocalDate.of(2000, 10, 8),
-                        21
-                ),
-                new Student(
-                        2L,
-                        "Vineet Khanna",
-                        "vineet@gmail.com",
-                        LocalDate.of(1995, 2, 18),
-                        27
-                )
-        );
+    private final StudentRepository studentRepository;
+
+    @Autowired
+    public StudentService(StudentRepository studentRepository) {
+        this.studentRepository = studentRepository;
     }
 
+    public List<Student> getStudents() {
+        return studentRepository.findAll();
+    }
+
+    public void addNewStudent(Student student){
+
+        Optional<Student> studentOptional = studentRepository.findStudentByEmail(student.getEmail());
+
+        if(studentOptional.isPresent())
+            throw new IllegalStateException("Email is already taken");
+
+        studentRepository.save(student);
+    }
+
+    public void deleteStudent(Long studentId){
+
+        boolean exists = studentRepository.existsById(studentId);
+
+        if(!exists){
+            throw new IllegalStateException("Student with id-" + studentId + " doesn't exist");
+        }
+
+        studentRepository.deleteById(studentId);
+    }
+
+    @Transactional
+    public void updateStudent(Long studentId, String name, String email){
+
+        System.out.println(studentId + name + " " + email);
+
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Student with id-" + studentId + " doesn't exist"));
+
+        if(name != null && name.length() > 0 &&
+                !Objects.equals(student.getName(), name)){
+            student.setName(name);
+        }
+
+        if(email != null && email.length() > 0 &&
+                !Objects.equals(student.getEmail(), email)){
+
+            // if email is already taken or not
+            Optional<Student> optionalStudent = studentRepository.findStudentByEmail(email);
+            if(optionalStudent.isPresent()){
+                System.out.println("EXISTSSSS");
+                throw new IllegalStateException("The email you provided is already in use");
+            }
+
+            student.setEmail(email);
+        }
+    }
 }
